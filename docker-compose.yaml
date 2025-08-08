@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql/mysql-server:latest
+    container_name: mysql01
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    networks:
+      - mynetwork
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: myadmin
+    ports:
+      - "8123:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    depends_on:
+      - mysql
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge
