@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Filiera</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+
+<div id="dashboard-content" style="display:none;">
+  
+  <div class="container py-5">
+
+    <!-- Titolo e saluto -->
+    <div class="mb-4">
+      <h2 class="fw-bold">Dashboard</h2>
+      <p class="text-muted">Benvenuto nella tua area riservata</p>
+    </div>
+
+    <!-- Row bottoni -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary w-100" onclick="loadProfile()">Mostra Profilo</button>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-success w-100" onclick="window.location.href='step.html'">Nuovo Step</button>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-info w-100 text-white" onclick="window.location.href='timeline.html'">Visualizza Filiera</button>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-danger w-100" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Card dati utente -->
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white">
+        <strong>Dati utente</strong>
+      </div>
+      <div class="card-body">
+        <pre id="profile-data" class="mb-0 bg-light p-3 rounded" style="white-space: pre-wrap;"></pre>
+      </div>
+    </div>
+
+    <!-- Alert errori -->
+    <div id="dashboard-error" class="alert alert-danger mt-3" style="display:none;"></div>
+
+  </div>
+</div>
+
+<!--
+<div id="access-denied" class="container py-5" style="display:none;">
+    <h3>Accesso negato</h3>
+    <p>Non sei autorizzato a visualizzare questa pagina.</p>
+</div>
+-->
+
+<script src="js/protected.js"></script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

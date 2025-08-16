@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inserisci Step Filiera</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  label { display: block; margin-top: 10px; }
+  input, textarea { width: 100%; padding: 6px; margin-top: 4px; }
+  button { margin-top: 15px; padding: 10px 20px; }
+  pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
+</style>
+</head>
+<body>
+
+<h2>Inserisci Step della Filiera</h2>
+
+<form id="stepForm">
+    <label for="blockchain"></label>
+    <select type="hidden" id="blockchain" name="blockchain" value="filiera_agroalimentare" >
+        <option value="8a20baa40c45dc5055aeb26197c203e576ef389d9acb171bd62da11dc5ad72b2" selected>Circular SandBox</option>
+        <option value="acb8a9b79f3c663aa01be852cd42725f9e0e497fd849b436df51c5e074ebeb28">Circular Secondary Public</option>
+        <option value="714d2ac07a826b66ac56752eebd7c77b58d2ee842e523d913fd0ef06e6bdfcae">Circular Main Public</option>
+        <option value="e087257c48a949710b48bc725b8d90066871fa08f7bbe75d6b140d50119c481f">Circular Documark Public</option>
+    </select>
+
+
+
+    <label for="batch_id">ID del lotto</label>
+    <input type="text" id="batch_id" name="batch_id" required />
+
+    <label for="type">Tipo (es. raccolta, lavorazione)</label>
+    <input type="text" id="type" name="type" required />
+
+    <label for="product">Prodotto</label>
+    <input type="text" id="product" name="product" required />
+
+    <label for="quantity">Quantità</label>
+    <input type="number" id="quantity" name="quantity" required min="0" />
+
+    <label for="unit">Unità di misura (es. litri, kg)</label>
+    <input type="text" id="unit" name="unit" required />
+
+    <label for="location">Località</label>
+    <input id="location" name="location" type="text" required placeholder="Scrivi un indirizzo" />
+    <ul id="suggestions"></ul>
+
+    <label for="timestamp">Data e ora (ISO 8601)</label>
+    <input type="datetime-local" id="timestamp" name="timestamp" required />
+
+
+    <label for="parents">Lotti predecessori (separati da virgola)</label>
+    <input type="text" id="parents" name="parents" placeholder="PARENT-LOTT12,PARENT-LOTT34" />
+
+    <label for="certification">Certificazione (facoltativo)</label>
+    <input type="text" id="certification" name="certification" />
+
+    <label for="notes">Note (facoltativo)</label>
+    <textarea id="notes" name="notes" rows="3"></textarea>
+
+    <button type="submit">Invia Step</button>
+</form>
+
+<h3>Risultato API</h3>
+<pre id="result"></pre>
+
+<script src="js/protected.js"></script>
+<script src="js/insert_form.js"></script>
+
+</body>
+</html>

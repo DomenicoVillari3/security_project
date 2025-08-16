@@ -1,0 +1,17 @@
+curl -X 'POST' \
+  'http://127.0.0.1:8000/filiera/add_step?blockchain=0x8a20baa40c45dc5055aeb26197c203e576ef389d9acb171bd62da11dc5ad72b2' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  - H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtaW1tbzJAZ21haWwuY29tIiwiZXhwIjoxNzU1MzM1MzIyfQ.9-19unnnYEzhUDmSJzK7OrSAmCks3JEw_2Nw2yQVDhs'
+  -d '{
+  "batch_id": "string",
+  "type": "string",
+  "product": "string",
+  "quantity": 0,
+  "unit": "string",
+  "location": "string",
+  "timestamp": "2025-08-16T10:42:17.535Z",
+  "parents": [],
+  "certification": "",
+  "notes": ""
+}'
