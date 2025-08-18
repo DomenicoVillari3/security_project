@@ -1,4 +1,7 @@
 from fastapi import FastAPI,HTTPException,Query
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from pydantic import BaseModel, EmailStr
@@ -7,6 +10,8 @@ from dotenv import load_dotenv
 import os
 import mysql.connector
 from typing import Optional, List
+import re
+import json
 
 
 from security import hash_password, verify_password, create_access_token, decode_JWT
@@ -18,7 +23,7 @@ from circular_protocol_api import helper
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from utils import define_transaction
+from utils import define_transaction,get_db_connection,define_qr_code,decode_from_hex
 
 
 
@@ -82,19 +87,6 @@ class ReturnedTransaction(BaseModel):
 
 
 
-#----Database----
-load_dotenv()
-
-def get_db_connection():
-    connection = mysql.connector.connect(
-        host=os.getenv("MYSQL_HOST"),
-        port=int(os.getenv("MYSQL_PORT", 3306)),
-        user=os.getenv("MYSQL_USER"),
-        password=os.getenv("MYSQL_PASSWORD"),
-        database=os.getenv("MYSQL_DATABASE")
-    )
-    return connection
-
 #-- Autenticazione e autorizzazione ----
 # Dependency OAuth2: legge il token JWT dall'header Authorization: Bearer <token>
 '''OAuth2PasswordBearer è una dependency di FastAPI che dice all’app:
@@ -126,8 +118,17 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
     return user  # Restituisce il dizionario con i dati utente
 
+
+
+
 #---- Inizializzazione dell'applicazione FastAPI ----
 app = FastAPI()
+
+# Servire file statici (CSS, JS, immagini)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+# Configurazione template
+templates = Jinja2Templates(directory="templates")
+
 
 # Abilita tutte le origini durante lo sviluppo
 app.add_middleware(
@@ -137,6 +138,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+#------GET PAGINE------
+@app.get("/login", response_class=HTMLResponse)
+def get_login():
+    with open("templates/login.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/register", response_class=HTMLResponse)
+def get_register():
+    with open("templates/register.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def get_dashboard():
+    with open("templates/dashboard.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+        return HTMLResponse(content=html_content)
+
+@app.get("/filiera", response_class=HTMLResponse)
+def get_filiera():
+    with open("templates/filiera.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+    
+@app.get("/step", response_class=HTMLResponse)
+def get_step():
+    with open("templates/step.html","r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+    
 
 #------API CALLS------
 
@@ -169,7 +197,8 @@ def register(user: UserCreate):
     # Crea il token di accesso
     token = create_access_token({"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}
-    
+
+
 
 # Login
 @app.post("/auth/login", response_model=Token)
@@ -205,7 +234,7 @@ def profilo_corrente(current_user: dict = Depends(get_current_user)):
 
 
 #inserimento di un passo della filiera (PROTETTA)
-@app.post("/filiera/add_step", response_model=ReturnedTransaction,)
+@app.post("/filiera/add_step", response_model=ReturnedTransaction)
 def inserisci_step_filiera(payload: StepFiliera,blockchain: str = Query(...),current_user: dict = Depends(get_current_user)):
     circular = CircularProtocolAPI()
 
@@ -225,15 +254,155 @@ def inserisci_step_filiera(payload: StepFiliera,blockchain: str = Query(...),cur
     data=define_transaction(blockchain=BLOCKCHAIN,payload=payload_dict,sender=sender,to=to,privateKey=privateKey)
     print(data)
 
+
     result = helper.sendRequest(data, nag_functions._SEND_TRANSACTION, circular.getNAGURL())
-    return result
+
+    tx_id=result["Response"]["TxID"]
+    if not tx_id:
+        raise HTTPException(status_code=500, detail="Errore durante l'invio della transazione")
+    
+    url = f"filiera/tx/{tx_id}"
+    img_base64 = define_qr_code(url, tx_id)
+    
     
 
+    return result
 
+#---- Recupero di un passo della filiera (PUBBLICA) ----
 
+# ====== NUOVI ENDPOINTS PER LA VISUALIZZAZIONE ======
 
+#RITORNA PAGINA HTML CON TRANSAZIONE
+@app.get("/filiera/view/{tx_id}", response_class=HTMLResponse)
+def view_supply_chain_page(tx_id: str):
+    """
+    Restituisce la pagina HTML per visualizzare la filiera
+    Questo è l'endpoint a cui punta il QR code
+    """
+    with open("templates/filiera.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    
+    # Sostituisci il placeholder con l'ID della transazione
+    html_content = html_content.replace("{{TX_ID}}", tx_id)
+    html_content = html_content.replace("{{BLOCKCHAIN}}", BLOCKCHAIN)
+    
+    return HTMLResponse(content=html_content, status_code=200)
 
+#RITORNA TRANSAZIONE BY ID 
+@app.get("/api/filiera/tx/{blockchain}/{tx_id}", response_model=ReturnedTransaction)
+def get_step_filiera(tx_id: str, blockchain: str):
+    """
+    API per recuperare i dati di una singola transazione
+    """
+    # Validazione input
+    if not re.match(r'^[a-fA-F0-9]+$', tx_id):
+        raise HTTPException(status_code=400, detail="Transaction ID non valido")
+    
+    if not re.match(r'^0x[a-fA-F0-9]+$', blockchain):
+        raise HTTPException(status_code=400, detail="Blockchain ID non valido")
+    
+    circular = CircularProtocolAPI()
+    res = circular.getTransactionByID(blockchain, tx_id, "0", "2")
+    
+    if not res:
+        raise HTTPException(status_code=404, detail="Transazione non trovata")
+    
+    return res
 
+#RITORNA LA CHAIN COMPLETA 
+@app.get("/api/filiera/chain/{tx_id}")
+def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
+    """
+    Recupera l'intera catena di transazioni collegata a un tx_id
+    """
+    circular = CircularProtocolAPI()
+    
+    # Recupera la transazione principale
+    main_tx = circular.getTransactionByID(blockchain, tx_id, "0", "2")
+    if not main_tx:
+        raise HTTPException(status_code=404, detail="Transazione non trovata")
+    
+    chain_data = {
+        "current_transaction": main_tx,
+        "parents": [],
+        "children": [],
+        "supply_chain_timeline": []
+    }
+    
+    # Decodifica il payload per ottenere i dati strutturati
+    try:
+        if "Payload" in main_tx.get("Response", {}):
+            payload_hex = main_tx["Response"]["Payload"]
+            
+            payload_json=decode_from_hex(parent_payload_hex)
+            
+            chain_data["current_transaction"]["Response"]["DecodedPayload"] = payload_json
+            
+            # Recupera transazioni parent se specificate
+            if "parents" in payload_json and payload_json["parents"]:
+                
+                for parent_id in payload_json["parents"]:
+                    #recupoero transazione
+                    parent_tx = circular.getTransactionByID(blockchain, parent_id, "0", "2")
+                    if parent_tx:
+                        # Decodifica anche il payload del parent
+                        try:
+                            parent_payload_hex = parent_tx["Response"]["Payload"]
+                            parent_payload_json=decode_from_hex(parent_payload_hex)
+                            parent_tx["Response"]["DecodedPayload"] = parent_payload_json
+                        except:
+                            pass
+                        chain_data["parents"].append(parent_tx)
+    
+    except Exception as e:
+        print(f"Errore nella decodifica del payload: {e}")
+    
+    # Crea timeline ordinata per timestamp
+    all_transactions = [main_tx] + chain_data["parents"]
+    timeline = []
+    
+    for tx in all_transactions:
+        try:
+            decoded_payload = tx["Response"].get("DecodedPayload", {})
+            timeline_item = {
+                "tx_id": tx["Response"]["ID"],
+                "timestamp": decoded_payload.get("timestamp", tx["Response"].get("Timestamp", "")),
+                "type": decoded_payload.get("type", "Unknown"),
+                "product": decoded_payload.get("product", "Unknown"),
+                "location": decoded_payload.get("location", "Unknown"),
+                "quantity": decoded_payload.get("quantity", 0),
+                "unit": decoded_payload.get("unit", ""),
+                "certification": decoded_payload.get("certification", ""),
+                "notes": decoded_payload.get("notes", "")
+            }
+            timeline.append(timeline_item)
+        except:
+            continue
+    
+    # Ordina per timestamp
+    timeline.sort(key=lambda x: x["timestamp"])
+    chain_data["supply_chain_timeline"] = timeline
+    
+    return chain_data
 
-
-        
+@app.get("/api/qrcode/{tx_id}")
+def get_qr_code(tx_id: str):
+    """
+    Recupera il QR code salvato per una transazione
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT qrcode_img, qr_url FROM transaction_qrcode WHERE tx_id=%s", (tx_id,))
+    result = cursor.fetchone()
+    
+    cursor.close()
+    conn.close()
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="QR Code non trovato")
+    
+    return {
+        "qr_code": result["qrcode_img"],
+        "qr_url": result.get("qr_url", "")
+    }

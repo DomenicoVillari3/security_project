@@ -1,4 +1,5 @@
 const API_BASE = "http://127.0.0.1:8000";
+const base_url= "http://localhost:8000";
 
 
 //variabili associate agli elementi del form
@@ -88,7 +89,7 @@ async function register() {
 
         if (res.ok) {
             localStorage.setItem("token", data.access_token);
-            window.location.href = "dashboard.html";
+            window.location.href = `${base_url}/dashboard`;
         } else {
             document.getElementById("register-error").textContent = data.detail || "Errore nella registrazione";
             document.getElementById("register-error").style.display = "block";

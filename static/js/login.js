@@ -1,4 +1,5 @@
 const API_BASE = "http://127.0.0.1:8000";
+const base_url= "http://localhost:8000";
 
 // Bind event al caricamento pagina
 window.onload = function () {
@@ -26,7 +27,7 @@ async function loginProcedure() {
             // Salva token JWT in localStorage
             localStorage.setItem("token", data.access_token);
             // Reindirizza alla dashboard
-            window.location.href = "dashboard.html";
+            window.location.href = `${base_url}/dashboard`;
         } else {
             // Mostra errore API nella pagina
             const divElement = document.getElementById("messaggio_errore");

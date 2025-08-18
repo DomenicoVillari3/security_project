@@ -1,5 +1,3 @@
-// URL base API
-const API_BASE = "http://127.0.0.1:8000";
 
 
 
@@ -47,7 +45,7 @@ document.getElementById('stepForm').addEventListener('submit', async function(ev
     try {
         // Invio POST a backend /filiera/step con JSON
         // blockchain è passato come query parameter per tenere pulito il body della richiesta
-        /*const response = await authenticatedFetch(`${API_BASE}/filiera/add_step?blockchain=${selected_blockchain}`, {
+        const response = await authenticatedFetch(`${API_BASE}/filiera/add_step?blockchain=${selected_blockchain}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyData)
@@ -60,13 +58,13 @@ document.getElementById('stepForm').addEventListener('submit', async function(ev
         document.getElementById('result').textContent = JSON.stringify(data, null, 2);
         } else {
         document.getElementById('result').textContent = "Errore: " + (data.detail || JSON.stringify(data));
-        }*/
+        }
         console.log(`Invio dati: ${JSON.stringify(bodyData, null, 2)}`);
+        console.log(`blockchain ${selected_blockchain}`)
     } 
     catch (error) {
         document.getElementById('result').textContent = "Errore di rete: " + error.message;
     }
         
-    
     
 })

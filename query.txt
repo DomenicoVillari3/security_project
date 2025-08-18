@@ -18,3 +18,8 @@ CREATE TABLE log(
     FOREIGN KEY (id_user) REFERENCES user(id)
 
 )
+
+CREATE TABLE transaction_qrcode (
+    tx_id VARCHAR(128) PRIMARY KEY,
+    qrcode_img LONGTEXT NOT NULL   -- Base64 
+)
