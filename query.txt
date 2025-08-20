@@ -23,3 +23,9 @@ CREATE TABLE transaction_qrcode (
     tx_id VARCHAR(128) PRIMARY KEY,
     qrcode_img LONGTEXT NOT NULL   -- Base64 
 )
+
+
+ALTER TABLE `user` 
+  ADD COLUMN `google_id` VARCHAR(255) NULL,
+  ADD COLUMN `profile_picture` VARCHAR(500) NULL,
+  MODIFY COLUMN `psswd` VARCHAR(255) NULL;

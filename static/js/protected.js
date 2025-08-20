@@ -1,5 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000"; // URL backend
-const base_url = "http://localhost:8000"; // URL base per reindirizzamenti
+const API_BASE = "http://localhost:8000"; // URL backend
 
 // Wrapper per fetch autenticato
 async function authenticatedFetch(url, options = {}) {
@@ -21,16 +20,31 @@ function checkAuth() {
   const token = localStorage.getItem("token");
   if (!token) {
     alert("Accesso negato. Effettua il login.");
-    window.location.href = `${base_url}/login`;
+    window.location.href = `${API_BASE}/login`;
     return null;
   }
   return token;
 }
 
 // Logout
-function logout() {
-  localStorage.removeItem("token");
-  window.location.href = `${base_url}/login`;
+// Logout
+async function logout() {
+  try {
+    const response = await authenticatedFetch(`${API_BASE}/auth/logout`, {
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      console.error("Errore durante il logout:", response.statusText);
+      return;
+    }
+
+    // Rimuovi il token e reindirizza al login
+    localStorage.removeItem("token");
+    window.location.href = `${API_BASE}/login`;
+  } catch (error) {
+    console.error("Errore di rete durante il logout:", error);
+  }
 }
 
 // Recupera solo i dati profilo 
@@ -61,7 +75,11 @@ async function loadProfile() {
     }
     
     document.getElementById("dashboard-content").style.display = "block";
-    
+    console.log("Dati profilo caricati:", data.utente.nome);
+  
+    document.getElementById("span_user").innerHTML = data.utente.nome|| 'Utente';
+    document.getElementById("userimg").src = data.utente.profile_picture || "static/css/undraw_profile.svg";
+
     
   } catch (err) {
     console.error("Errore profilo:", err);

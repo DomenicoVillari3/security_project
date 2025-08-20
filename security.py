@@ -5,8 +5,8 @@ import os
 from dotenv import load_dotenv
 
 # Configura parametri JWT
-SECRET_KEY = os.getenv("SECRET_KEY", "your_secret")
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("JWT_SECRET", "your_secret")
+ALGORITHM = os.getenv("JWT_ALGORITHM","HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

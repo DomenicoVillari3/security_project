@@ -36,7 +36,7 @@ def define_transaction(blockchain,payload,sender,to,privateKey):
     ID = str(blockchain + sender + to + payload + str(nonce) + timestamp)
 
     hashID = helper.sha256(ID)
-    signature = helper.signMessage(hashID, privateKey)
+    #signature = helper.signMessage(hashID, privateKey)
     transactionType = "C_TYPE_CERTIFICATE"
 
 
@@ -48,7 +48,7 @@ def define_transaction(blockchain,payload,sender,to,privateKey):
     'Type': transactionType,
     'Payload': payload,
     'Nonce': f"{nonce}",
-    'Signature': signature,
+    'Signature': None,
     'Blockchain': blockchain,
     'Version': circular.getVersion()
     }
@@ -63,7 +63,7 @@ def define_transaction(blockchain,payload,sender,to,privateKey):
 
     Vantaggi: È leggera, semplice e pensata proprio per le certificazioni nella supply chain, tracciabilità e attestazioni di processo che non hanno un valore token o asset diretto.'''
 
-    return data    
+    return data,hashID    
 
 def define_qr_code(url, tx_id,base_url="https://localhost:8000",save=True):
     '''Funzione per generare un QR code da un URL e salvarlo in base64 su db e su file system.(opzionale)
