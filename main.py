@@ -21,7 +21,7 @@ from circular_protocol_api import CircularProtocolAPI
 from circular_protocol_api import nag_functions
 from circular_protocol_api import helper
 from fastapi.middleware.cors import CORSMiddleware
-from utils import define_transaction,get_db_connection,define_qr_code,decode_from_hex,generate_pdf_bytes
+from utils import *
 
 load_dotenv()
 
@@ -576,6 +576,7 @@ def view_supply_chain_page(tx_id: str):
         return HTMLResponse(content=html_content, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore durante la lettura del template: {str(e)}")
+    
 
 # Recupero di un passo della filiera tramite Txid
 @app.get("/filiera/tx/{blockchain}/{tx_id}", response_model=ReturnedTransaction)
@@ -629,26 +630,22 @@ def get_step_filiera(tx_id: str, blockchain: str):
         print(f"❌ Errore nel polling: {e}")
         raise
 
-#ritorno l'intera catena di transazioni collegata a un tx_id
 @app.get("/api/filiera/chain/{tx_id}")
 def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     """
     Recupera l'intera catena di transazioni collegata a un tx_id
-    -Args:
-        tx_id (str): ID della transazione principale da cui partire.        
-        blockchain (str): Identificatore della blockchain (es. "0x8a20baa40c45dc5055aeb26197c203e576ef389d9acb171bd62da11dc5ad72b2").   
-
-    -Returns:
-        dict: Dati della catena di transazioni, inclusa la transazione principale, i genitori e i figli.
-        
-    -Raises:
-        HTTPException: Se il tx_id non è valido, se la transazione principale non viene trovata o se si verifica un errore durante la decodifica del payload.   
     """
     circular = CircularProtocolAPI()
     
+    # Pulisci il tx_id
+    tx_id_clean = tx_id.replace("0x", "")
+    blockchain_clean = blockchain.replace("0x", "")
+    
     # Recupera la transazione principale
-    main_tx = circular.getTransactionByID(blockchain, tx_id, "0", "2")
-    if not main_tx:
+    main_tx = circular.getTransactionByID(blockchain_clean, tx_id_clean, "0", "2")
+    print("🔍 Main transaction:", main_tx)
+    
+    if not main_tx or main_tx.get("Result") != 200:
         raise HTTPException(status_code=404, detail="Transazione non trovata")
     
     chain_data = {
@@ -658,33 +655,50 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
         "supply_chain_timeline": []
     }
     
-    # Decodifica il payload per ottenere i dati strutturati
+    # Decodifica il payload della transazione principale
     try:
-        if "Payload" in main_tx.get("Response", {}):
-            payload_hex = main_tx["Response"]["Payload"]
+        response_data = main_tx.get("Response", {})
+        if "Payload" in response_data:
+            payload_hex = response_data["Payload"]  # ✅ Definisci la variabile qui
+            print(f"🔍 Payload hex: {payload_hex[:100]}...")
             
-            payload_json=decode_from_hex(parent_payload_hex)
+            # Decodifica il payload principale
+            payload_json = decode_from_hex(payload_hex)  # ✅ Usa la variabile corretta
+            print(f"🔍 Payload decodificato: {payload_json}")
             
-            chain_data["current_transaction"]["Response"]["DecodedPayload"] = payload_json
+            # Aggiungi il payload decodificato alla transazione principale
+            main_tx["Response"]["DecodedPayload"] = payload_json
             
             # Recupera transazioni parent se specificate
             if "parents" in payload_json and payload_json["parents"]:
+                print(f"🔍 Parents trovati: {payload_json['parents']}")
                 
                 for parent_id in payload_json["parents"]:
-                    #recupoero transazione
-                    parent_tx = circular.getTransactionByID(blockchain, parent_id, "0", "2")
-                    if parent_tx:
+                    parent_id_clean = parent_id.replace("0x", "")
+                    print(f"🔍 Recupero parent: {parent_id_clean}")
+                    
+                    # Recupera transazione parent
+                    parent_tx = circular.getTransactionByID(blockchain_clean, parent_id_clean, "0", "2")
+                    if parent_tx and parent_tx.get("Result") == 200:
                         # Decodifica anche il payload del parent
                         try:
-                            parent_payload_hex = parent_tx["Response"]["Payload"]
-                            parent_payload_json=decode_from_hex(parent_payload_hex)
-                            parent_tx["Response"]["DecodedPayload"] = parent_payload_json
-                        except:
-                            pass
+                            parent_response = parent_tx.get("Response", {})
+                            if "Payload" in parent_response:
+                                parent_payload_hex = parent_response["Payload"]  # ✅ Definisci correttamente
+                                parent_payload_json = decode_from_hex(parent_payload_hex)
+                                parent_tx["Response"]["DecodedPayload"] = parent_payload_json
+                                print(f"✅ Parent payload decodificato: {parent_payload_json}")
+                        except Exception as e:
+                            print(f"⚠️ Errore decodifica parent payload: {e}")
+                            
                         chain_data["parents"].append(parent_tx)
+                    else:
+                        print(f"⚠️ Parent transaction non trovata: {parent_id_clean}")
     
     except Exception as e:
-        print(f"Errore nella decodifica del payload: {e}")
+        print(f"❌ Errore nella decodifica del payload principale: {e}")
+        # Aggiungi un payload vuoto per evitare errori nel frontend
+        main_tx["Response"]["DecodedPayload"] = {}
     
     # Crea timeline ordinata per timestamp
     all_transactions = [main_tx] + chain_data["parents"]
@@ -692,27 +706,50 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     
     for tx in all_transactions:
         try:
-            decoded_payload = tx["Response"].get("DecodedPayload", {})
+            response_data = tx.get("Response", {})
+            decoded_payload = response_data.get("DecodedPayload", {})
+            
             timeline_item = {
-                "tx_id": tx["Response"]["ID"],
-                "timestamp": decoded_payload.get("timestamp", tx["Response"].get("Timestamp", "")),
+                "tx_id": response_data.get("ID", ""),
+                "timestamp": decoded_payload.get("timestamp", response_data.get("Timestamp", "")),
                 "type": decoded_payload.get("type", "Unknown"),
                 "product": decoded_payload.get("product", "Unknown"),
                 "location": decoded_payload.get("location", "Unknown"),
                 "quantity": decoded_payload.get("quantity", 0),
                 "unit": decoded_payload.get("unit", ""),
                 "certification": decoded_payload.get("certification", ""),
-                "notes": decoded_payload.get("notes", "")
+                "notes": decoded_payload.get("notes", ""),
+                "batch_id": decoded_payload.get("batch_id", "")
             }
             timeline.append(timeline_item)
-        except:
+            print(f"✅ Timeline item creato: {timeline_item['type']} - {timeline_item['product']}")
+            
+        except Exception as e:
+            print(f"⚠️ Errore creazione timeline item: {e}")
             continue
     
-    # Ordina per timestamp
-    timeline.sort(key=lambda x: x["timestamp"])
+    # Ordina per timestamp (gestisci formati diversi)
+    def parse_timestamp(ts):
+        try:
+            # Prova formato ISO (2025-08-23T13:06:00Z)
+            if 'T' in ts and 'Z' in ts:
+                from datetime import datetime
+                return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            # Prova formato blockchain (2025:08:23-13:06:12)
+            elif ':' in ts and '-' in ts:
+                from datetime import datetime
+                return datetime.strptime(ts, "%Y:%m:%d-%H:%M:%S")
+            else:
+                return ts
+        except:
+            return ts
+    
+    timeline.sort(key=lambda x: parse_timestamp(x["timestamp"]))
     chain_data["supply_chain_timeline"] = timeline
     
+    print(f"✅ Chain data completato. Timeline items: {len(timeline)}")
     return chain_data
+
 
 
 # Recupera il QR code associato a una transazione

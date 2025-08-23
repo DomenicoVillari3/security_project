@@ -9,6 +9,7 @@ from io import BytesIO
 import base64
 import fpdf 
 import tempfile
+import hashlib
 
 #----Database----
 load_dotenv()
@@ -168,6 +169,11 @@ def generate_pdf_bytes(data,qr=None, filename="certificate.pdf"):
     # Spazio iniziale
     pdf.ln(20)
 
+    data_str = json.dumps(data, sort_keys=True)
+    file_hash = hashlib.sha256(data_str.encode('utf-8')).hexdigest()
+    data['File Hash'] = file_hash
+    data['Hash Algorithm'] = 'SHA256'
+
     # Mostra i dati in formato tabellare - due colonne (Chiave e Valore)
     line_height = pdf.font_size * 2
     col_width_key = 50
@@ -190,3 +196,34 @@ def generate_pdf_bytes(data,qr=None, filename="certificate.pdf"):
     return pdf_bytes
 
 
+def extract_specific_fields(text):
+    """
+    Usa regex specifici per ogni campo
+    """
+    fields = {}
+    
+    # Pattern per ogni campo
+    patterns = {
+        'ID': r'ID:\s*([a-f0-9\s]+?)(?=\s*BlockID:|$)',
+        'BlockID': r'BlockID:\s*(\d+)',
+        'From': r'From:\s*([a-f0-9\s]+?)(?=\s*To:|$)',
+        'To': r'To:\s*([a-f0-9\s]+?)(?=\s*NodeID:|$)',
+        'NodeID': r'NodeID:\s*([a-f0-9\s]+?)(?=\s*Timestamp:|$)',
+        'Timestamp': r'Timestamp:\s*([\d:\-]+)',
+        'Type': r'Type:\s*([A-Z_]+)',
+        'Status': r'Status:\s*(\w+)',
+        'Payload': r'Payload:\s*([a-f0-9\s]+?)(?=\s*OSignature:|$)',
+        'OSignature': r'OSignature:\s*([a-f0-9\s]+?)(?=\s*Page|$)'
+    }
+    
+    # Rimuovi \n per semplificare il matching
+    clean_text = text.replace('\n', ' ')
+    
+    for field, pattern in patterns.items():
+        match = re.search(pattern, clean_text, re.IGNORECASE)
+        if match:
+            # Rimuovi spazi extra
+            value = re.sub(r'\s+', '', match.group(1)) if field != 'Timestamp' else match.group(1)
+            fields[field] = value
+    
+    return fields

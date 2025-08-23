@@ -1,7 +1,10 @@
 
 // Parametri dalla pagina
-const TX_ID = '{{TX_ID}}';
-const BLOCKCHAIN = '{{BLOCKCHAIN}}';
+const TX_ID = document.getElementById('tx').innerText.trim();
+const BLOCKCHAIN = document.getElementById('blockchain').innerText.trim();
+console.log("TX_ID:", TX_ID);
+console.log("BLOCKCHAIN:", BLOCKCHAIN);
+
 
 // Funzione per formattare la data
 function formatDate(dateString) {
@@ -50,6 +53,9 @@ function getTypeColor(type) {
 // Carica i dati della filiera
 async function loadSupplyChainData() {
     try {
+        console.log("TX_ID:", TX_ID);
+        console.log("BLOCKCHAIN:", BLOCKCHAIN);
+
         const response = await fetch(`/api/filiera/chain/${TX_ID}?blockchain=${BLOCKCHAIN}`);
         
         if (!response.ok) {
