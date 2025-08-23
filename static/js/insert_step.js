@@ -2,6 +2,20 @@
 // IMPORTANTE: CircularProtocolAPI è un OGGETTO, non una funzione!
 // Non fare: new CircularProtocolAPI() 
 // Fai semplicemente: CircularProtocolAPI
+function setLoading(isLoading) {
+    const loadingElem = document.getElementById('loading');
+    const submitButton = document.getElementById('submitButton');
+    
+    if (loadingElem) {
+        loadingElem.style.display = isLoading ? 'block' : 'none';
+    }
+    
+    // Disabilita/abilita il pulsante submit durante la transazione
+    if (submitButton) {
+        submitButton.disabled = isLoading;
+        submitButton.textContent = isLoading ? 'Elaborazione in corso...' : 'Invia Transazione';
+    }
+}
 
 // Funzione di firma usando CircularProtocolAPI
 function signTransaction(hashid, privateKeyHex) {
@@ -88,6 +102,9 @@ async function signWithStoredKey(walletAddress, hashid, passphrase) {
 // Gestione submit form
 document.getElementById('stepForm').addEventListener('submit', async function(event) {
     event.preventDefault();
+
+    // Mostra animazione di loading
+    setLoading(true);
     
     // Prepara i dati dal form
     const selected_blockchain = document.getElementById("blockchain").value;
@@ -131,8 +148,8 @@ document.getElementById('stepForm').addEventListener('submit', async function(ev
 
         // 3) Ottieni wallet address
         console.log('👤 Recupero profilo utente...');
-        const data = await getProfile();
-        const profile = data.utente || data;
+        const profile_data = await getProfile();
+        const profile = profile_data.utente || profile_data;
         const walletAddress = normalizeWalletAddress(profile.wallet_addr);
         console.log('🔑 Wallet address:', walletAddress);
 
@@ -157,11 +174,25 @@ document.getElementById('stepForm').addEventListener('submit', async function(ev
             document.getElementById('result').innerHTML = `
                 <div class="alert alert-success">
                     <h4>✅ Transazione inviata con successo!</h4>
-                    <p><strong>TxID:</strong> ${result.Response?.TxID || 'N/A'}</p>
+                    <p><strong>TxID:</strong> ${"0x"+result.Response?.TxID || 'N/A'}</p>
                     <p><strong>Timestamp:</strong> ${result.Response?.Timestamp || 'N/A'}</p>
                     <p><strong>Node:</strong> ${result.Node || 'N/A'}</p>
                 </div>
             `;
+            
+
+            console.log("TXID: ","0x"+result.Response.TxID,"BKC",selected_blockchain)
+            //DOWLOAD PDF
+            txid="0x"+result.Response.TxID
+            
+           await pdfDownload(txid,selected_blockchain);
+            
+
+            // SVUOTA TUTTI I CAMPI DEL FORM
+            form.reset();
+            console.log('📝 Campi del form svuotati');
+
+            
         } else {
             const errorData = await submitResponse.json();
             throw new Error(errorData.detail || "Errore durante l'invio");
@@ -175,6 +206,10 @@ document.getElementById('stepForm').addEventListener('submit', async function(ev
                 <p>${error.message}</p>
             </div>
         `;
+    }
+    finally {
+        // Nascondi animazione di loading in ogni caso
+        setLoading(false);
     }
 });
 
@@ -239,5 +274,38 @@ function openDB() {
                 db.createObjectStore("encrypted_keys", { keyPath: "walletId" });
             }
         };
+    });
+}
+
+
+
+
+async function pdfDownload(tx_id,blockchain) {
+    // Effettua una chiamata POST all'endpoint '/download_pdf'
+    fetch(`${API_BASE}/certificate/${blockchain}/${tx_id}`, {
+    method: 'GET', // Metodo HTTP POST
+    headers: {
+        'Content-Type': 'application/json' // Il corpo della richiesta sarà in formato JSON
+    },
+    })
+    .then(response => response.blob()) // Riceve la risposta come oggetto Blob (file binario, in questo caso PDF)
+    .then(blob => {
+    // Crea un URL temporaneo a partire dal blob ricevuto
+    const url = window.URL.createObjectURL(blob);
+        console.log("URL del blob:", url);
+    // Crea dinamicamente un elemento <a> per il download
+    const a = document.createElement('a');
+    a.href = url; // imposta il file come sorgente href
+    a.download = `certificate_${tx_id}.pdf`; // suggerisce il nome del file da scaricare
+
+    // Aggiunge il link al DOM e simula il click
+    document.body.appendChild(a);
+    a.click(); // avvia il download automatico
+
+    // Rimuove il link appena usato dal DOM
+    a.remove();
+
+    // Libera la memoria associata all'URL temporaneo
+    window.URL.revokeObjectURL(url);
     });
 }

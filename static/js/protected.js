@@ -15,16 +15,39 @@ async function authenticatedFetch(url, options = {}) {
   });
 }
 
-// Controllo autenticazione
-function checkAuth() {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    alert("Accesso negato. Effettua il login.");
-    window.location.href = `${API_BASE}/login`;
-    return null;
-  }
-  return token;
+/// Funzione per validare il token con il backend
+async function validateToken() {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/validate_token`, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+        
+        return response.ok; // true se 200, false se 401 o altro errore
+    } catch (error) {
+        console.error("Errore validazione token:", error);
+        return false;
+    }
 }
+
+// Controllo autenticazione migliorato
+async function checkAuth() {
+    const isValid = await validateToken();
+    if (!isValid) {
+        // Token mancante o non valido - rimuovi e reindirizza
+        localStorage.removeItem("token");
+        window.location.href = `${API_BASE}/login`;
+        return false;
+    }
+    return true;
+}
+
+
 
 // Logout
 // Logout
@@ -62,10 +85,12 @@ async function getProfile() {
 
 // Mostra dati nel DOM
 async function loadProfile() {
-  if (!checkAuth()) {
-    console.error("Token mancante o non valido");
-    return;
-  }
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) {
+        console.error("Token non valido o mancante");
+        return;
+    }
+
 
   try {
     const data = await getProfile();

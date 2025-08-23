@@ -7,6 +7,8 @@ import os
 import mysql.connector
 from io import BytesIO 
 import base64
+import fpdf 
+import tempfile
 
 #----Database----
 load_dotenv()
@@ -25,9 +27,11 @@ def define_transaction(blockchain,payload,sender,to,privateKey):
 
     # --- 1. Dati del lotto (JSON) ---
     
-
+    print("sender:", sender)
+    print("blockchain:", blockchain)
     timestamp = helper.getFormattedTimestamp()
     blockchain = helper.hexFix(blockchain)
+    print(circular.getWalletNonce(blockchain, sender))
     nonce = int(circular.getWalletNonce(blockchain, sender)["Response"]["Nonce"]) + 1
     payload = helper.hexFix(json.dumps(payload).encode().hex())
     privateKey = helper.hexFix(privateKey)
@@ -75,6 +79,9 @@ def define_qr_code(url, tx_id,base_url="https://localhost:8000",save=True):
     Returns:
         str: Il QR code in formato base64.
     '''
+    if not tx_id.startswith("0x"):
+        tx_id="0x"+tx_id
+
     url = f"{base_url}/filiera/view/{tx_id}"
 
     # Crea il QR code
@@ -98,9 +105,9 @@ def define_qr_code(url, tx_id,base_url="https://localhost:8000",save=True):
 
     try:
         cursor.execute("""
-            INSERT INTO transaction_qrcode (tx_id, qrcode_img)
-            VALUES (%s, %s)
-        """, (tx_id, img_base64))
+            INSERT INTO transaction_qrcode (tx_id, qrcode_img,qr_url)
+            VALUES (%s, %s,%s)
+        """, (tx_id, img_base64,url))
         db.commit()
         cursor.close()
         db.close()
@@ -123,4 +130,63 @@ def decode_from_hex(hex_data):
         json_data = json.loads(bytes_data.decode('utf-8'))
 
         return json_data
+
+
+#-- PDF generation----
+
+class PDFCertificate(fpdf.FPDF):
+    def header(self):
+        # Header con titolo centrato
+        self.set_font("Arial", 'B', 16)
+        self.cell(0, 15, "Certificate Details", border=0, ln=True, align="C")
+        self.ln(20)
+
+    def footer(self):
+        # Footer con numero pagina centrato
+        self.set_y(-15)
+        self.set_font("Arial", 'I', 8)
+        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+def generate_pdf_bytes(data,qr=None, filename="certificate.pdf"):
+    pdf = PDFCertificate()
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+
+    # Inserisci QR code se presente, allineato a destra
+    if qr:
+        # Crea un file temporaneo per il QR code
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+            tmp.write(base64.b64decode(qr))
+            tmp_path = tmp.name
+        
+        try:
+            pdf.image(tmp_path, x=90, y=25, w=30)
+        finally:
+            # Rimuovi il file temporaneo
+            os.unlink(tmp_path)
+    
+    # Spazio iniziale
+    pdf.ln(20)
+
+    # Mostra i dati in formato tabellare - due colonne (Chiave e Valore)
+    line_height = pdf.font_size * 2
+    col_width_key = 50
+    col_width_val = 130
+
+
+
+    for key, value in data.items():
+        pdf.set_font(family='Arial', style='B')  # Corretto: family è obbligatorio
+        pdf.cell(col_width_key, line_height, f"{key}:", border=0)
+        pdf.set_font(family='Arial', style='')   # Corretto: family è obbligatorio
+        pdf.multi_cell(col_width_val, line_height, str(value))
+        pdf.ln(1)
+   
+    
+    # Salva in memoria senza creare file su disco
+    pdf_output = pdf.output(dest='S').encode('latin1')
+    pdf_bytes = BytesIO(pdf_output)
+    pdf_bytes.seek(0)
+    return pdf_bytes
+
 

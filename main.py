@@ -1,5 +1,5 @@
 from fastapi import FastAPI,HTTPException,Query
-from fastapi.responses import HTMLResponse, FileResponse,RedirectResponse,JSONResponse
+from fastapi.responses import HTMLResponse,RedirectResponse,JSONResponse,StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
@@ -11,21 +11,17 @@ import mysql.connector
 from typing import Optional, List
 import re
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from authlib.integrations.starlette_client import OAuth
 import httpx
 import os
-
-
 from security import hash_password, verify_password, create_access_token, decode_JWT
 from datetime import timedelta,datetime
-
 from circular_protocol_api import CircularProtocolAPI  
 from circular_protocol_api import nag_functions
 from circular_protocol_api import helper
-
 from fastapi.middleware.cors import CORSMiddleware
-
-from utils import define_transaction,get_db_connection,define_qr_code,decode_from_hex
+from utils import define_transaction,get_db_connection,define_qr_code,decode_from_hex,generate_pdf_bytes
 
 load_dotenv()
 
@@ -48,6 +44,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+#Middleware per disabilitare la cache
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Imposta header per disabilitare cache
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+app.add_middleware(NoCacheMiddleware)
+
+
+
 # Configura OAuth
 oauth = OAuth()
 oauth.register(
@@ -255,6 +265,19 @@ def get_pk_manager():
     
 
 #--------------------------------------API CALLS----------------------------------------------
+
+@app.get("/auth/validate_token")
+def validate_token(current_user: dict = Depends(get_current_user)):
+    """
+    Endpoint per validare se il token JWT è valido
+    Returns:
+        dict: {"valid": True} se il token è valido
+    Raises:
+        HTTPException: 401 se il token non è valido o scaduto
+    """
+    return {"valid": True, "user": current_user["email"]}
+
+
 # Login con Google
 @app.get("/auth/google/login")
 async def google_login(request: Request):
@@ -471,7 +494,9 @@ def build_step_filiera(payload: StepFiliera,blockchain: str = Query(...),current
     to = sender # If the particular transaction doesn't necessitate a recipient address, this field can be the same as the sender's address.
 
     payload_dict = payload.model_dump(mode="json") #Generate a dictionary representation of the model
-
+    
+    print("Payload:", payload_dict)
+    
     #Returns the data not signed
     data,hashid=define_transaction(blockchain=BLOCKCHAIN,payload=payload_dict,sender=sender,to=to,privateKey=None)
     print(data)
@@ -501,6 +526,7 @@ def inserisci_step_filiera(signedTx: SignedTx, current_user: dict = Depends(get_
     data=signedTx.unsigned_tx
     data["Signature"]=signedTx.signed_signature
     #signature = helper.signMessage(data['ID'], privateKey)
+    print(data)
     
     #check sender == to actual user 
     print(current_user.get("wallet_addr"),type(current_user.get("wallet_addr")))
@@ -512,6 +538,8 @@ def inserisci_step_filiera(signedTx: SignedTx, current_user: dict = Depends(get_
     print(result)
     
     tx_id=result["Response"]["TxID"]
+    #node_id=result["Node"]
+    
     if not tx_id:
         raise HTTPException(status_code=500, detail="Errore durante l'invio della transazione")
     
@@ -536,19 +564,21 @@ def view_supply_chain_page(tx_id: str):
     -Raises:
         HTTPException: Se il tx_id non è valido o se si verifica un errore durante la lettura del template.
     """
-
-    #Lettura del template HTML
-    with open("templates/filiera.html", "r", encoding="utf-8") as f:
-        html_content = f.read()
+    try:
+        #Lettura del template HTML
+        with open("templates/filiera.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        # Sostituisci il placeholder con l'ID della transazione
+        html_content = html_content.replace("{{TX_ID}}", tx_id)
+        html_content = html_content.replace("{{BLOCKCHAIN}}", BLOCKCHAIN)
     
-    # Sostituisci il placeholder con l'ID della transazione
-    html_content = html_content.replace("{{TX_ID}}", tx_id)
-    html_content = html_content.replace("{{BLOCKCHAIN}}", BLOCKCHAIN)
-    
-    return HTMLResponse(content=html_content, status_code=200)
+        return HTMLResponse(content=html_content, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore durante la lettura del template: {str(e)}")
 
 # Recupero di un passo della filiera tramite Txid
-@app.get("/api/filiera/tx/{blockchain}/{tx_id}", response_model=ReturnedTransaction)
+@app.get("/filiera/tx/{blockchain}/{tx_id}", response_model=ReturnedTransaction)
 def get_step_filiera(tx_id: str, blockchain: str):
     """
     API per recuperare i dati di una singola transazione
@@ -562,20 +592,42 @@ def get_step_filiera(tx_id: str, blockchain: str):
     -Raises:
         HTTPException: Se il tx_id o la blockchain non sono validi, o se la transazione non viene trovata.
     """
-    # Validazione input
-    if not re.match(r'^[a-fA-F0-9]+$', tx_id):
-        raise HTTPException(status_code=400, detail="Transaction ID non valido")
-    
-    if not re.match(r'^0x[a-fA-F0-9]+$', blockchain):
-        raise HTTPException(status_code=400, detail="Blockchain ID non valido")
-    
+    print("TX",tx_id)
+    print("BK",blockchain)
+
+    # Pulisci i parametri
+    blockchain_clean = blockchain.replace("0x", "")
+    tx_id_clean = tx_id.replace("0x", "")
+
+
     circular = CircularProtocolAPI()
-    res = circular.getTransactionByID(blockchain, tx_id, "0", "2")
-    
-    if not res:
-        raise HTTPException(status_code=404, detail="Transazione non trovata")
-    
-    return res
+    try:
+        # getTransactionOutcome fa già il polling automaticamente
+        outcome = circular.getTransactionOutcome(
+            blockchain, 
+            tx_id, 
+            180,
+            intervalSec=20  # Controlla ogni 20 secondi
+        )
+        
+        if outcome["Result"] == 200:
+            status = outcome["Response"]["Status"]
+            
+            if status == "Executed":
+                print(f"✅ Transazione {tx_id} completata con successo!")
+                print(outcome)
+                return outcome
+            elif status == "Failed":
+                raise Exception(f"❌ Transazione {tx_id} fallita")
+            else:
+                print(f"⏳ Transazione {tx_id} in stato: {status}")
+                return outcome
+        else:
+            raise Exception(f"❌ Errore API: {outcome}")
+            
+    except Exception as e:
+        print(f"❌ Errore nel polling: {e}")
+        raise
 
 #ritorno l'intera catena di transazioni collegata a un tx_id
 @app.get("/api/filiera/chain/{tx_id}")
@@ -673,16 +725,21 @@ def get_qr_code(tx_id: str):
     -Returns:
         dict: Contiene l'immagine del QR code in formato Base64 e l'URL associato.  
     """
+    if not tx_id.startswith("0x"):
+        tx_id="0x"+tx_id
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("SELECT qrcode_img, qr_url FROM transaction_qrcode WHERE tx_id=%s", (tx_id,))
+    cursor.execute("SELECT * FROM transaction_qrcode WHERE tx_id=%s", (tx_id,))
     result = cursor.fetchone()
+    print(result)
     
     cursor.close()
     conn.close()
     
     if not result:
+        print("ERRORE QRCODE---> SELECT * FROM transaction_qrcode WHERE tx_id=%s", (tx_id,))
         raise HTTPException(status_code=404, detail="QR Code non trovato")
     
     return {
@@ -741,3 +798,51 @@ def update_wallet_address(
 async def debug_cookies(request: Request):
     print("Cookies ricevuti dal client:", request.cookies)
     return {"cookies": dict(request.cookies)}
+
+
+@app.get("/certificate/{blockchain}/{tx_id}")
+def download_pdf_endpoint(blockchain:str,tx_id: str):
+   
+   
+        if not tx_id.startswith("0x"):
+            tx_id="0x"+tx_id
+        if not blockchain.startswith("0x"):
+            blockchain="0x"+blockchain
+
+        print("GET STEPS FILIERA")
+        # Recupera i dati della transazione dalla blockchain
+        step=get_step_filiera(tx_id,blockchain)
+        
+        if not step:
+            raise HTTPException(status_code=404, detail="Transazione non trovata")
+        
+        # Estrai solo i campi necessari
+        data = {
+            "ID": step["Response"]["ID"],
+            "BlockID":step["Response"]["BlockID"],
+            "From": step["Response"]["From"],
+            "To": step["Response"]["To"],
+            "NodeID": step["Response"]["NodeID"],
+            "Timestamp": step["Response"]["Timestamp"],
+            "Type": step["Response"]["Type"],
+            "Status": step["Response"]["Status"],
+            "Payload":step["Response"]["Payload"],
+            "OSignature":step["Response"]["OSignature"]
+        }
+        print("DATA ", data)
+        print("data['ID']",data["ID"])
+
+        qr_code=get_qr_code(data["ID"])
+        qr_code_img = qr_code["qr_code"]
+        qr_code_url = qr_code["qr_url"]
+    
+
+        pdf_file = generate_pdf_bytes(data,qr=qr_code_img, filename=f"certificate_{data['ID']}.pdf")
+       
+        headers = {
+            'Content-Disposition': f'attachment; filename="certificate_{tx_id}.pdf"'
+        }
+        
+        return StreamingResponse(pdf_file, media_type="application/pdf", headers=headers)
+    
+    

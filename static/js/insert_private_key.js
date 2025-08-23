@@ -123,18 +123,16 @@ async function saveEncryptedKey(walletId, encryptedObj) {
 // 5) salva tutto in IndexedDB
 document.getElementById("importKeyForm").addEventListener("submit", async function (event) {
   event.preventDefault();
-  document.getElementById("errorMessage").textContent = "";
-  document.getElementById("resultMessage").textContent = "";
-
-  const privateKeyInput = document.getElementById("privateKey").value.trim();
+  
+  const privateKeyInput = document.getElementById("privateKeyInput").value.trim();
   const passphraseInput = document.getElementById("passphrase").value;
 
   if (!privateKeyInput) {
-    document.getElementById("errorMessage").textContent = "Inserisci la private key!";
+    document.getElementById("privateKeyHelp").textContent = "Inserisci la private key!";
     return;
   }
   if (!passphraseInput || passphraseInput.length < 8) {
-    document.getElementById("errorMessage").textContent = "La passphrase deve avere almeno 8 caratteri!";
+    document.getElementById("privateKeyHelp").textContent = "La passphrase deve avere almeno 8 caratteri!";
     return;
   }
 
@@ -163,10 +161,17 @@ document.getElementById("importKeyForm").addEventListener("submit", async functi
     // Azzeramento chiave in memoria
     privateKeyUint8.fill(0);
 
-    document.getElementById("resultMessage").textContent = "Chiave salvata e protetta correttamente!";
+    document.getElementById("privateKeySuccess").style.display = "block";
+    console.log("Private key cifrata e salvata con successo per wallet:", walletAddress);
+    document.getElementById("privateKeyError").style.display = "none";
+    
   } catch (error) {
-    document.getElementById("errorMessage").textContent = "Errore: " + error.message;
+    document.getElementById("privateKeySuccess").style.display = "none";
+    document.getElementById("privateKeyError").textContent = "Errore: " + error.message;
+    document.getElementById("privateKeyError").style.display = "block";
+    
   }
+
 });
 
 
