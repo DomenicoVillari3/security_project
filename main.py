@@ -912,3 +912,85 @@ def download_pdf_endpoint(blockchain:str,tx_id: str):
         return StreamingResponse(pdf_file, media_type="application/pdf", headers=headers)
     
     
+@app.get("/api/wallet/transactions")
+def get_wallet_transactions(
+    current_user: dict = Depends(get_current_user),
+    start: str = Query("0", description="Starting block number"),
+    end: str = Query("latest", description="Ending block number") 
+):
+    """
+    Ottiene le transazioni del wallet dell'utente corrente
+    
+    Args:
+        current_user: Utente corrente (dalla dependency)
+        start: Numero blocco di inizio (default "0")
+        end: Numero blocco di fine (default "latest")
+        
+    Returns:
+        dict: Lista delle transazioni del wallet
+    """
+    try:
+        wallet_addr = current_user.get("wallet_addr")
+        if not wallet_addr:
+            raise HTTPException(status_code=400, detail="Wallet address non trovato nel profilo utente")
+        
+        # Inizializza l'API Circular Protocol
+        circular = CircularProtocolAPI()
+        
+        # Se end è "latest", ottieni il numero dell'ultimo blocco
+        if end == "latest":
+            # Puoi implementare una funzione per ottenere l'ultimo blocco
+            # Per ora uso un numero alto come placeholder
+            end = "999999"
+        
+        # Chiama l'API per ottenere le transazioni
+        result = circular.getTransactionsByAddress(
+            blockchain=BLOCKCHAIN,
+            address=wallet_addr,
+            start=start,
+            end=end
+        )
+        
+        if result.get("Result") == 200:
+            transactions = result.get("Response", [])
+            
+            # Se è una stringa "No Transactions Found", restituisci lista vuota
+            if isinstance(transactions, str) and "No Transactions Found" in transactions:
+                transactions = []
+            
+            # Ordina le transazioni per timestamp (più recenti per prime)
+            if isinstance(transactions, list) and transactions:
+                try:
+                    transactions.sort(key=lambda x: x.get("Timestamp", ""), reverse=True)
+                except:
+                    pass  # Se l'ordinamento fallisce, mantieni l'ordine originale
+            
+            return {
+                "success": True,
+                "transactions": transactions,
+                "total": len(transactions) if isinstance(transactions, list) else 0,
+                "wallet_address": wallet_addr
+            }
+        else:
+            # Gestisce errori dell'API
+            error_messages = {
+                102: "Indirizzo blockchain non valido",
+                103: "File blockchain corrotto o range blocchi non valido"
+            }
+            error_msg = error_messages.get(result.get("Result"), f"Errore API: {result.get('Response', 'Errore sconosciuto')}")
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "transactions": [],
+                "total": 0,
+                "wallet_address": wallet_addr
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+    
+@app.get("/timeline", response_class=HTMLResponse)
+def get_transactions():
+    with open("templates/timeline.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())

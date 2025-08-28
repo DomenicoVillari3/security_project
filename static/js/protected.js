@@ -94,9 +94,119 @@ async function loadProfile() {
 
   try {
     const data = await getProfile();
-    profile_section=document.getElementById("profile-data")
-    if (profile_section){
-        profile_section.textContent = JSON.stringify(data.utente || data, null, 2);
+    const profile_section = document.getElementById("profile-data");
+
+    if (profile_section) {
+        const userData = data.utente || data;
+        
+        // Funzione per formattare la data
+        function formatDate(dateString) {
+            if (!dateString) return '<span class="text-muted">Non disponibile</span>';
+            const date = new Date(dateString);
+            return date.toLocaleString('it-IT', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        
+
+        
+
+        profile_section.innerHTML = `
+            <div class="row no-gutters">
+                <!-- Colonna sinistra - Informazioni base -->
+                <div class="col-md-6">
+                    <div class="p-4 border-right">
+                        <h6 class="text-primary font-weight-bold mb-3">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Informazioni generali
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">ID Utente</label>
+                            <div class="h6 mb-0">#${userData.id || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Nome</label>
+                            <div class="h6 mb-0">${userData.nome || '<span class="text-muted">Non specificato</span>'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Ruolo</label>
+                            <div>
+                                <span class="h6 mb-0">
+                                    <i class="fas fa-user-tag mr-1"></i>
+                                    ${userData.ruolo || 'Non specificato'}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Email</label>
+                            <div class="h6 mb-0">
+                                ${userData.email ? `<i class="fas fa-envelope mr-1 text-muted"></i>${userData.email}` : '<span class="text-muted">Non disponibile</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Colonna destra - Informazioni blockchain -->
+                <div class="col-md-6">
+                    <div class="p-4">
+                        <h6 class="text-primary font-weight-bold mb-3">
+                            <i class="fab fa-ethereum mr-1"></i>
+                            Informazioni Blockchain
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Wallet Address</label>
+                            <div class="small bg-light p-2 rounded border" style="word-break: break-all; font-family: monospace;">
+                                ${userData.wallet_addr || '<span class="text-muted">Non disponibile</span>'}
+                            </div>
+                           
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Public Key</label>
+                            <div class="small bg-light p-2 rounded border" style="word-break: break-all; font-family: monospace;">
+                                ${userData.public_key || '<span class="text-muted">Non disponibile</span>'}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-gray-600 small font-weight-bold text-uppercase">Data registrazione utente</label>
+                            <div class="h6 mb-0">
+                                <i class="fas fa-calendar mr-1 text-muted"></i>
+                                ${formatDate(userData.data_creazione_wallet)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sezione autenticazione -->
+            <div class="border-top bg-light px-4 py-3">
+                <h6 class="text-primary font-weight-bold mb-2">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    Autenticazione
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-gray-600 font-weight-bold text-uppercase">Google ID</small>
+                        <div class="small">${userData.google_id || '<span class="text-muted">Non collegato</span>'}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-gray-600 font-weight-bold text-uppercase">Foto profilo</small>
+                        <div class="small">${userData.profile_picture ? '<span class="text-success">Impostata</span>' : '<span class="text-muted">Non impostata</span>'}</div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
     document.getElementById("dashboard-content").style.display = "block";
