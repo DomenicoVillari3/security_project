@@ -31,3 +31,61 @@
 @keyframes spinner-border {
     to { transform: rotate(360deg); }
 }
+.upload-section {
+    padding: 15px;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background-color: #f8f9fa;
+}
+
+.file-item {
+    background-color: #fff;.upload-section {
+    padding: 15px;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background-color: #f8f9fa;
+}
+
+.file-item {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+}
+
+.form-control-file {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 12px;
+    background-color: #fff;
+}
+
+#idList code {
+    display: inline-block;
+    margin: 2px;
+    padding: 4px 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+    border: 1px solid #dee2e6;
+}
+
+.form-control-file {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 12px;
+    background-color: #fff;
+}
+
+#idList code {
+    display: inline-block;
+    margin: 2px;
+    padding: 4px 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}

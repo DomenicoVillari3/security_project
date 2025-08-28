@@ -608,26 +608,26 @@ def get_step_filiera(tx_id: str, blockchain: str):
             blockchain, 
             tx_id, 
             180,
-            intervalSec=20  # Controlla ogni 20 secondi
+            intervalSec=10  # Controlla ogni 20 secondi
         )
         
         if outcome["Result"] == 200:
             status = outcome["Response"]["Status"]
             
             if status == "Executed":
-                print(f"✅ Transazione {tx_id} completata con successo!")
+                print(f"Transazione {tx_id} completata con successo!")
                 print(outcome)
                 return outcome
             elif status == "Failed":
-                raise Exception(f"❌ Transazione {tx_id} fallita")
+                raise Exception(f"Transazione {tx_id} fallita")
             else:
-                print(f"⏳ Transazione {tx_id} in stato: {status}")
+                print(f" Transazione {tx_id} in stato: {status}")
                 return outcome
         else:
             raise Exception(f"❌ Errore API: {outcome}")
             
     except Exception as e:
-        print(f"❌ Errore nel polling: {e}")
+        print(f"Errore nel polling: {e}")
         raise
 
 @app.get("/api/filiera/chain/{tx_id}")
@@ -638,12 +638,15 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     circular = CircularProtocolAPI()
     
     # Pulisci il tx_id
-    tx_id_clean = tx_id.replace("0x", "")
-    blockchain_clean = blockchain.replace("0x", "")
+    if not tx_id.startswith("0x") or not blockchain.startswith("0x"):
+        blockchain = "0x"+blockchain
+        tx_id= "0x"+tx_id
+    
+    print(f"TX: {tx_id} \n blockchain {blockchain}\n ")
     
     # Recupera la transazione principale
-    main_tx = circular.getTransactionByID(blockchain_clean, tx_id_clean, "0", "2")
-    print("🔍 Main transaction:", main_tx)
+    main_tx = circular.getTransactionByID(blockchain, tx_id, "0", "67")
+    print(" Main transaction:", main_tx)
     
     if not main_tx or main_tx.get("Result") != 200:
         raise HTTPException(status_code=404, detail="Transazione non trovata")
@@ -658,45 +661,67 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     # Decodifica il payload della transazione principale
     try:
         response_data = main_tx.get("Response", {})
+        print("\n  Response data:", response_data)
         if "Payload" in response_data:
-            payload_hex = response_data["Payload"]  # ✅ Definisci la variabile qui
-            print(f"🔍 Payload hex: {payload_hex[:100]}...")
+            payload_hex = response_data["Payload"]  
+            print(f"\n  Payload hex: {payload_hex[:100]}...")
             
             # Decodifica il payload principale
             payload_json = decode_from_hex(payload_hex)  # ✅ Usa la variabile corretta
-            print(f"🔍 Payload decodificato: {payload_json}")
+            print(f" Payload decodificato: {payload_json}")
             
             # Aggiungi il payload decodificato alla transazione principale
             main_tx["Response"]["DecodedPayload"] = payload_json
             
             # Recupera transazioni parent se specificate
             if "parents" in payload_json and payload_json["parents"]:
-                print(f"🔍 Parents trovati: {payload_json['parents']}")
+                print(f" Parents trovati: {payload_json['parents']}")
+            
+                parent_list=payload_json["parents"]
                 
-                for parent_id in payload_json["parents"]:
-                    parent_id_clean = parent_id.replace("0x", "")
-                    print(f"🔍 Recupero parent: {parent_id_clean}")
+                print("PARENTS LIST INIZIALE:",parent_list)
+                #DECODIFICA PER I PARENTS
+                for parent_id in parent_list:
+                    print(f"\n\n\n Parent ID originale: {parent_id}")
+                    if "-" in parent_id:
+                        parent_id=parent_id.split("-")[0]
+
+                    print
+                    if not parent_id.startswith("0x"):
+                        parent_id="0x"+parent_id
+
+                    print(f" Recupero parent: {parent_id}")
                     
                     # Recupera transazione parent
-                    parent_tx = circular.getTransactionByID(blockchain_clean, parent_id_clean, "0", "2")
+                    parent_tx = circular.getTransactionByID(blockchain, parent_id, "0", "1000")
+                    #print("PARENTTx",parent_tx)
                     if parent_tx and parent_tx.get("Result") == 200:
-                        # Decodifica anche il payload del parent
                         try:
                             parent_response = parent_tx.get("Response", {})
                             if "Payload" in parent_response:
                                 parent_payload_hex = parent_response["Payload"]  # ✅ Definisci correttamente
                                 parent_payload_json = decode_from_hex(parent_payload_hex)
                                 parent_tx["Response"]["DecodedPayload"] = parent_payload_json
-                                print(f"✅ Parent payload decodificato: {parent_payload_json}")
+                                if len(parent_payload_json["parents"])>0:
+                                    for parent_id in parent_payload_json["parents"]:
+                                        if "-" in parent_id:
+                                            parent_id=parent_id.split("-")[0]
+                                        if not parent_id.startswith("0x"):
+                                            parent_id="0x"+parent_id
+                                        parent_list.append(parent_id)
+                                    print("PARENTS LIST :",parent_list)
+
+                                print(f"Parent payload decodificato: {parent_payload_json}")
+
                         except Exception as e:
-                            print(f"⚠️ Errore decodifica parent payload: {e}")
+                            print(f"Errore decodifica parent payload: {e}")
                             
                         chain_data["parents"].append(parent_tx)
                     else:
-                        print(f"⚠️ Parent transaction non trovata: {parent_id_clean}")
+                        print(f" Parent transaction non trovata: {parent_id}")
     
     except Exception as e:
-        print(f"❌ Errore nella decodifica del payload principale: {e}")
+        print(f" Errore nella decodifica del payload principale: {e}")
         # Aggiungi un payload vuoto per evitare errori nel frontend
         main_tx["Response"]["DecodedPayload"] = {}
     
@@ -706,26 +731,30 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     
     for tx in all_transactions:
         try:
-            response_data = tx.get("Response", {})
-            decoded_payload = response_data.get("DecodedPayload", {})
             
+            response_data = dict(tx["Response"])
+            decoded_payload = dict(response_data["DecodedPayload"])
+            print("\n\n\n RESPONSE:",response_data,type(response_data))
+            print("\n\n\n Decoded: ",decoded_payload,type(decoded_payload))
+
             timeline_item = {
-                "tx_id": response_data.get("ID", ""),
-                "timestamp": decoded_payload.get("timestamp", response_data.get("Timestamp", "")),
-                "type": decoded_payload.get("type", "Unknown"),
-                "product": decoded_payload.get("product", "Unknown"),
-                "location": decoded_payload.get("location", "Unknown"),
-                "quantity": decoded_payload.get("quantity", 0),
-                "unit": decoded_payload.get("unit", ""),
-                "certification": decoded_payload.get("certification", ""),
-                "notes": decoded_payload.get("notes", ""),
-                "batch_id": decoded_payload.get("batch_id", "")
+                "block_id":response_data["BlockID"],
+                "tx_id": response_data["ID"],
+                "timestamp": decoded_payload["timestamp"],
+                "type": decoded_payload["type"],
+                "product": decoded_payload["product"],
+                "location": decoded_payload["location"],
+                "quantity": decoded_payload["quantity"],
+                "unit": decoded_payload["unit"],
+                "certification": decoded_payload["certification"],
+                "notes": decoded_payload["notes"],
+                "batch_id": decoded_payload["batch_id"]
             }
             timeline.append(timeline_item)
-            print(f"✅ Timeline item creato: {timeline_item['type']} - {timeline_item['product']}")
+            print(f"Timeline item creato: {timeline_item['type']} - {timeline_item['product']}")
             
         except Exception as e:
-            print(f"⚠️ Errore creazione timeline item: {e}")
+            print(f" Errore creazione timeline item: {e}")
             continue
     
     # Ordina per timestamp (gestisci formati diversi)
@@ -747,7 +776,7 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     timeline.sort(key=lambda x: parse_timestamp(x["timestamp"]))
     chain_data["supply_chain_timeline"] = timeline
     
-    print(f"✅ Chain data completato. Timeline items: {len(timeline)}")
+    print(f"Chain data completato. Timeline items: {len(timeline)}")
     return chain_data
 
 

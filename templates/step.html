@@ -12,6 +12,7 @@
   <link href="static/css/style.css" rel="stylesheet" />
   <!-- LIBRERIE CRYPTO -->
   <script src="https://unpkg.com/@noble/secp256k1@2.0.0/lib/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body class="bg-light">
 
@@ -174,20 +175,56 @@
           <ul id="suggestions" class="list-group mt-1"></ul>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-12">
           <label for="timestamp" class="form-label">Data e ora (ISO 8601)</label>
           <input type="datetime-local" class="form-control" id="timestamp" name="timestamp" required />
         </div>
 
-        <div class="col-md-6">
-          <label for="parents" class="form-label">Lotti predecessori (separati da virgola)</label>
-          <input type="text" class="form-control" id="parents" name="parents" placeholder="PARENT-LOTT12,PARENT-LOTT34" />
+        <!-- Sezione Upload PDF per Parent Transactions -->
+        <div class="form-group col-12">
+            <label for="parentFiles">Upload Certificati Parent (opzionale)</label>
+            <div class="upload-section">
+                <input type="file" 
+                      id="parentFiles" 
+                      name="parentFiles" 
+                      multiple 
+                      accept=".pdf"
+                      class="form-control-file">
+                <small class="form-text text-muted">
+                    Carica uno o più certificati PDF per estrarre automaticamente gli ID delle transazioni parent
+                </small>
+                
+                <!-- Area per mostrare i file caricati -->
+                <div id="uploadedFiles" class="mt-6" style="display: none;">
+                    <h6>📋 File caricati:</h6>
+                    <div id="fileList"></div>
+                </div>
+                
+                <!-- Area per mostrare gli ID estratti -->
+                <div id="extractedIds" class="mt-6" style="display: none;">
+                    <h6>🔗 Transaction ID estratti:</h6>
+                    <div id="idList" class="alert alert-info"></div>
+                    <button type="button" id="useExtractedIds" class="btn btn-sm btn-success">
+                        ✅ Usa questi ID come Parent
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="col-md-6">
-          <label for="certification" class="form-label">Certificazione (facoltativo)</label>
-          <input type="text" class="form-control" id="certification" name="certification" />
+        <!-- Campo Parent modificato -->
+        <div class="form-group col-12">
+            <label for="parents">🔗 Lotti predecessori (separati da virgola)</label>
+            <textarea name="parents" 
+                      id="parents" 
+                      rows="2" 
+                      class="form-control" 
+                      placeholder="es: 0xabc123..., 0xdef456...">
+            </textarea>
+            <small class="form-text text-muted">
+                Inserisci manualmente gli ID oppure usa l'upload PDF sopra
+            </small>
         </div>
+
 
         <div class="col-12">
           <label for="notes" class="form-label">Note (facoltativo)</label>

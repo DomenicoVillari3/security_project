@@ -53,15 +53,13 @@
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <div class="col-sm-6 mb-3 mb-sm-0">
+                                    <div class="col-sm-12 mb-3 mb-sm-0">
                                     <input type="email" class="form-control form-control-user" name="Email" id="reg-email"
                                         placeholder="Email Address" required>
                                     </div>
-                                    <div class="col-sm-6">
-                                        <input type="tel" class="form-control form-control-user" name="Wallet" id="reg-wallet"
-                                        placeholder="Wallet Address (Optional)" >
-                                    </div>
+                                    
                                 </div>
+                                
                                 <div class="form-group row">
                                     <div class="col-sm-6 mb-3 mb-sm-0">
                                         <input type="password" class="form-control form-control-user"
@@ -84,12 +82,14 @@
                                 <input type="button" id="form_invio" value="Register Account" class="btn btn-primary btn-user btn-block" onclick="register();">
                                 
                                 <hr>
-                                <a href="index.php" class="btn btn-google btn-user btn-block">
+                                <a href="/auth/google/login" class="btn btn-google btn-user btn-block">
                                     <i class="fab fa-google fa-fw"></i> Register with Google
                                 </a>
+                                <!--
                                 <a href="index.php" class="btn btn-facebook btn-user btn-block">
                                     <i class="fab fa-facebook-f fa-fw"></i> Register with Facebook
                                 </a>
+                                -->
                                 
                             </form>
                             <hr>
@@ -99,10 +99,10 @@
                             </div>
                             -->
                             <div class="text-center">
-                                <a class="small" href="login.html">Already have an account? Login!</a>
+                                <a class="small" href="http://localhost:8000/login">Already have an account? Login!</a>
                             </div>
                             <div class="text-center">
-                                <a class="small" href="https://circularlabs.io/page?page=Transactions">Get A Wallet</a>
+                                <a class="small" href="https://circularlabs.io/page?page=Transactions">Get A Wallet by circularlabs</a>
                             </div>
                         </div>
                     </div>

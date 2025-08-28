@@ -69,6 +69,7 @@ async function loadSupplyChainData() {
         
         // Mostra la timeline
         displayTimeline(data.supply_chain_timeline);
+        console.log(data.supply_chain_timeline)
         
         // Nascondi loading e mostra contenuto
         document.getElementById('loading').style.display = 'none';
@@ -88,7 +89,7 @@ function displayProductInfo(transaction) {
     
     const productCard = `
         <div class="info-card">
-            <h3>📦 Informazioni Prodotto</h3>
+            <h3> Informazioni Prodotto</h3>
             <div class="info-item">
                 <span class="info-label">Prodotto:</span>
                 <span class="info-value">${payload.product || 'N/A'}</span>
@@ -108,7 +109,7 @@ function displayProductInfo(transaction) {
         </div>
         
         <div class="info-card">
-            <h3>📍 Informazioni Logistiche</h3>
+            <h3> Informazioni Logistiche</h3>
             <div class="info-item">
                 <span class="info-label">Ubicazione:</span>
                 <span class="info-value">${payload.location || 'N/A'}</span>
@@ -124,18 +125,18 @@ function displayProductInfo(transaction) {
         </div>
         
         <div class="info-card">
-            <h3>🔗 Informazioni Blockchain</h3>
+            <h3> Informazioni Blockchain</h3>
             <div class="info-item">
                 <span class="info-label">Transaction ID:</span>
                 <span class="info-value" style="word-break: break-all; font-family: monospace;">${transaction.Response.ID}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">Timestamp Blockchain:</span>
-                <span class="info-value">${formatDate(transaction.Response.Timestamp)}</span>
+                <span class="info-label">BlockId:</span>
+                <span class="info-value">${transaction.Response.BlockID}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">Status:</span>
-                <span class="info-value">✅ Confermata</span>
+                <span class="info-value"> Confermata</span>
             </div>
         </div>
     `;
@@ -172,6 +173,14 @@ function displayTimeline(timeline) {
                 </div>
                 <div class="timeline-content">
                     <div class="info-item">
+                        <span class="info-label">Block ID:</span>
+                        <span class="info-value">${item.block_id}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">TX ID:</span>
+                        <span class="info-value">${item.tx_id}</span>
+                    </div>
+                    <div class="info-item">
                         <span class="info-label">Prodotto:</span>
                         <span class="info-value">${item.product}</span>
                     </div>
@@ -187,12 +196,6 @@ function displayTimeline(timeline) {
                         <span class="info-label">Quantità:</span>
                         <span class="info-value">${item.quantity} ${item.unit}</span>
                     </div>
-                    ${item.certification ? `
-                        <div class="info-item">
-                            <span class="info-label">Certificazione:</span>
-                            <span class="info-value">${item.certification}</span>
-                        </div>
-                    ` : ''}
                     ${item.notes ? `
                         <div class="info-item" style="grid-column: 1 / -1;">
                             <span class="info-label">Note:</span>
