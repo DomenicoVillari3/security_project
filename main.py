@@ -645,7 +645,7 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
     print(f"TX: {tx_id} \n blockchain {blockchain}\n ")
     
     # Recupera la transazione principale
-    main_tx = circular.getTransactionByID(blockchain, tx_id, "0", "67")
+    main_tx = circular.getTransactionByID(blockchain, tx_id, "0", "10000")
     print(" Main transaction:", main_tx)
     
     if not main_tx or main_tx.get("Result") != 200:
@@ -693,7 +693,7 @@ def get_complete_chain(tx_id: str, blockchain: str = Query(default=BLOCKCHAIN)):
                     print(f" Recupero parent: {parent_id}")
                     
                     # Recupera transazione parent
-                    parent_tx = circular.getTransactionByID(blockchain, parent_id, "0", "1000")
+                    parent_tx = circular.getTransactionByID(blockchain, parent_id, "0", "10000")
                     #print("PARENTTx",parent_tx)
                     if parent_tx and parent_tx.get("Result") == 200:
                         try:

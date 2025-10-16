@@ -89,3 +89,8 @@
     font-family: 'Courier New', monospace;
     font-size: 12px;
 }
+.bg-register-login-image {
+  background: "static/css/logo.jpg";
+  background-position: center;
+  background-size: cover;
+}

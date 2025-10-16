@@ -29,7 +29,7 @@ function hexToUint8Array(hex) {
 }
 
 // Deriva chiave AES da passphrase e salt con PBKDF2
-// --- Derivazione chiave con PBKDF2 ---
+// Derivazione chiave con PBKDF2
 // Dato passphrase (stringa) + salt (bytes) deriva una chiave AES-GCM 256.
 // Iterazioni alte (200k) per rallentare gli attacchi a forza bruta.
 async function deriveKey(passphrase, salt) {
@@ -57,7 +57,7 @@ async function deriveKey(passphrase, salt) {
 }
 
 // Cifra la chiave privata con AES-GCM
-// --- Cifratura della private key con AES-GCM ---
+// Cifratura della private key con AES-GCM
 // Restituisce: ciphertext (base64), salt (base64), iv (base64), version, created_at
 async function encryptPrivateKey(privateKeyUint8, passphrase) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -149,8 +149,7 @@ document.getElementById("importKeyForm").addEventListener("submit", async functi
     // Cifra la chiave
     const encryptedObj = await encryptPrivateKey(privateKeyUint8, passphraseInput);
 
-    // Qui devi avere un modo per ottenere wallet address (es. derivazione pubkey->address)
-    // Temporaneamente metti un id fisso o calcola l’address
+  
     const profile = await getProfile();
     const walletAddress = normalizeWalletAddress(profile.utente.wallet_addr);
     console.log("Salvataggio chiave per wallet:", walletAddress);// AGGIUNGI QUESTO LOG

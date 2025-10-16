@@ -25,15 +25,15 @@ function formatDate(dateString) {
 // Funzione per ottenere l'icona del tipo di step
 function getTypeIcon(type) {
     const icons = {
-        'production': '🌱',
-        'processing': '⚙️',
-        'transport': '🚚',
-        'retail': '🏪',
-        'certification': '📜',
-        'harvest': '🌾',
-        'packaging': '📦'
+        'production': '',
+        'processing': '',
+        'transport': '',
+        'retail': '',
+        'certification': '',
+        'harvest': '',
+        'packaging': ''
     };
-    return icons[type.toLowerCase()] || '📋';
+    return icons[type.toLowerCase()] || '';
 }
 
 // Funzione per ottenere il colore del tipo
@@ -144,7 +144,7 @@ function displayProductInfo(transaction) {
     if (payload.notes) {
         productInfoContainer.innerHTML += `
             <div class="info-card" style="grid-column: 1 / -1;">
-                <h3>📝 Note Aggiuntive</h3>
+                <h3> Note Aggiuntive</h3>
                 <p style="color: #2c3e50; line-height: 1.6;">${payload.notes}</p>
             </div>
         `;
