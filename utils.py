@@ -71,7 +71,7 @@ def define_transaction(blockchain,payload,sender,to,privateKey):
 
     return data,hashID    
 
-def define_qr_code(url, tx_id,base_url="https://localhost:8000",save=True):
+def define_qr_code(url, tx_id,base_url="http://localhost:8000",save=True):
     '''Funzione per generare un QR code da un URL e salvarlo in base64 su db e su file system.(opzionale)
     Args:
         url (str): L'URL da codificare nel QR code.
@@ -104,7 +104,7 @@ def define_qr_code(url, tx_id,base_url="https://localhost:8000",save=True):
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
-
+    
     try:
         cursor.execute("""
             INSERT INTO transaction_qrcode (tx_id, qrcode_img,qr_url)
